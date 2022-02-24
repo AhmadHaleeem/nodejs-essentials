@@ -2,6 +2,9 @@ const path = require('path');
 const fs = require("fs");
 
 const express = require("express");
+const uuid = require("uuid");
+
+const resData = require("./util/restaurant-data")
 
 const app = express();
 
@@ -16,10 +19,8 @@ app.get("/", (req, res) => {
 })
 
 app.get("/restaurants", (req, res) => {
-    const filePath = path.join(__dirname, 'data', 'restaurants.json');
-
-    const fileData = fs.readFileSync(filePath);
-    const storedRestaurents = JSON.parse(fileData);
+   
+    const storedRestaurents = resData.getStoredRestaurants();
 
     res.render("restaurants", { 
         numberOfRestaurents: storedRestaurents.length,
@@ -27,20 +28,32 @@ app.get("/restaurants", (req, res) => {
     });
 })
 
+app.get("/restaurants/:id", (req, res) => {
+    const restaurantId = req.params.id;
+   
+    const storedRestaurents = resData.getStoredRestaurants();
+
+    for (const restaurant of storedRestaurents) {
+        if (restaurant.id === restaurantId) {
+            return res.render("restaurant-detail", { restaurant: restaurant })
+        }
+    }
+
+    res.status(404).render("404");
+});
+
 app.get("/recommend", (req, res) => {
     res.render("recommend");
 })
 
 app.post('/recommend', (req, res) => {
     const restaurant = req.body;
-    const filePath = path.join(__dirname, 'data', 'restaurants.json');
+    restaurant.id = uuid.v4();
+    const restaurants = resData.getStoredRestaurants();
 
-    const fileData = fs.readFileSync(filePath);
-    const storedRestaurents = JSON.parse(fileData);
+    restaurants.push(restaurant);
 
-    storedRestaurents.push(restaurant);
-
-    fs.writeFileSync(filePath, JSON.stringify(storedRestaurents));
+    resData.storeRestaurants(restaurants);
     
     res.redirect("/confirm");
 })
@@ -51,6 +64,14 @@ app.get("/confirm", (req, res) => {
 
 app.get("/about", (req, res) => {
     res.render("about");
+})
+
+app.use(function(req, res) {
+    res.status(404).render("404");
+})
+
+app.use(function(error, req, res, next) {
+    res.status(500).render('500');
 })
 
 app.listen(3000);
